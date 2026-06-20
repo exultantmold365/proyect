@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Gestión de Reservas — Gimnasio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1216; --surface:#171b21; --surface-2:#1f242c; --line:#2a313b;
+    --text:#e9edf2; --text-dim:#8d97a3;
+    --teal:#1fb7a6; --teal-dim:#147a6f;
+    --orange:#ff7a3d;
+    --green:#3ec97a; --amber:#ffb547; --red:#ff5c5c;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;}
+  h1,h2,h3{font-family:'Sora',sans-serif;margin:0;}
+  .app{display:flex;min-height:100vh;}
+
+  /* SIDEBAR */
+  .sidebar{width:230px;background:var(--surface);border-right:1px solid var(--line);padding:24px 16px;display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+  .logo{font-family:'Sora',sans-serif;font-weight:700;font-size:18px;margin-bottom:6px;}
+  .logo span{color:var(--teal);}
+  .logo-sub{font-size:11px;color:var(--text-dim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:24px;}
+  .navbtn{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:7px;background:transparent;border:none;color:var(--text-dim);font-family:'Inter',sans-serif;font-size:14px;font-weight:500;cursor:pointer;text-align:left;width:100%;}
+  .navbtn:hover{background:var(--surface-2);color:var(--text);}
+  .navbtn.active{background:var(--teal-dim);color:#eafffa;}
+  .navbtn .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.6;}
+  .sidebar-foot{margin-top:auto;border-top:1px solid var(--line);padding-top:14px;font-size:11px;color:var(--text-dim);line-height:1.6;}
+
+  /* MAIN */
+  .main{flex:1;min-width:0;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;padding:18px 32px;border-bottom:1px solid var(--line);background:var(--surface);position:sticky;top:0;z-index:5;}
+  .topbar h1{font-size:19px;}
+  .topbar .role-tag{font-size:12px;color:var(--text-dim);margin-top:2px;}
+  .aforo-chip{display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--line);border-radius:100px;padding:7px 16px;}
+  .aforo-chip .num{font-family:'Space Mono',monospace;font-weight:700;font-size:14px;}
+  .aforo-chip .bar{width:90px;height:5px;border-radius:3px;background:var(--line);overflow:hidden;}
+  .aforo-chip .bar-fill{height:100%;background:var(--teal);transition:width .3s, background .3s;}
+  .aforo-chip.warn .bar-fill{background:var(--amber);}
+  .aforo-chip.full .bar-fill{background:var(--red);}
+
+  .content{padding:28px 32px 60px;max-width:1180px;}
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px 22px;margin-bottom:22px;}
+  .panel h2{font-size:16px;margin-bottom:14px;}
+  .panel h2 .tag{font-family:'Space Mono',monospace;font-size:11px;color:var(--text-dim);font-weight:400;margin-left:8px;}
+  .grid{display:grid;gap:14px;}
+  .grid.cols-3{grid-template-columns:repeat(3,1fr);}
+  .grid.cols-4{grid-template-columns:repeat(4,1fr);}
+  @media (max-width:900px){.grid.cols-3,.grid.cols-4{grid-template-columns:1fr 1fr;}}
+
+  .stat{background:var(--surface-2);border-radius:8px;padding:14px 16px;}
+  .stat-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;}
+  .stat-value{font-family:'Space Mono',monospace;font-size:22px;}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  th{text-align:left;color:var(--text-dim);font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;padding:8px 10px;border-bottom:1px solid var(--line);}
+  td{padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:100px;text-transform:uppercase;letter-spacing:.04em;}
+  .pill.ok{background:rgba(62,201,122,.15);color:var(--green);}
+  .pill.warn{background:rgba(255,181,71,.15);color:var(--amber);}
+  .pill.bad{background:rgba(255,92,92,.15);color:var(--red);}
+  .pill.info{background:rgba(31,183,166,.15);color:var(--teal);}
+  .pill.muted{background:var(--surface-2);color:var(--text-dim);}
+
+  button.action{font-family:'Inter',sans-serif;font-weight:600;font-size:12.5px;padding:7px 14px;border-radius:6px;border:1px solid var(--line);background:var(--surface-2);color:var(--text);cursor:pointer;}
+  button.action:hover{border-color:var(--teal);color:var(--teal);}
+  button.action.primary{background:var(--teal);border-color:var(--teal);color:#06231f;}
+  button.action.primary:hover{filter:brightness(1.08);color:#06231f;}
+  button.action.danger{background:transparent;border-color:var(--red);color:var(--red);}
+  button.action:disabled{opacity:.35;cursor:not-allowed;}
+
+  select, input[type=text]{background:var(--surface-2);border:1px solid var(--line);color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:8px 10px;border-radius:6px;}
+  input.table-edit{background:var(--surface-2);border:1px solid var(--line);color:var(--text);font-family:'Space Mono',monospace;font-size:12.5px;padding:6px 8px;border-radius:5px;width:72px;}
+  input.table-edit:focus{outline:none;border-color:var(--teal);}
+  label.f{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--text-dim);}
+
+  .empty{padding:30px;text-align:center;color:var(--text-dim);font-size:13.5px;}
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--surface-2);border:1px solid var(--teal);color:var(--text);padding:12px 18px;border-radius:8px;font-size:13.5px;box-shadow:0 4px 16px rgba(0,0,0,.4);z-index:50;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;}
+  .toast.show{opacity:1;transform:translateY(0);}
+  .toast.error{border-color:var(--red);}
+
+  .flex-between{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+  .muted-text{color:var(--text-dim);font-size:12.5px;}
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div>
+      <div class="logo">Iron<span>Line</span></div>
+      <div class="logo-sub">Gestión de reservas</div>
+    </div>
+    <button class="navbtn" data-role="usuario"><span class="dot"></span>Usuario</button>
+    <button class="navbtn" data-role="caja"><span class="dot"></span>Caja presencial</button>
+    <button class="navbtn" data-role="entrenador"><span class="dot"></span>Entrenador</button>
+    <button class="navbtn" data-role="admin"><span class="dot"></span>Administrador</button>
+    <div class="sidebar-foot">
+      RB-01 Aforo máx. 50<br>
+      RB-02 Pago al día requerido<br>
+      RB-03 Cancelación ≥ 2h antes<br>
+      RB-05 Confirmación en caja
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="viewTitle">Panel de usuario</h1>
+        <div class="role-tag" id="viewSub">RF-02 Reservas con validación de aforo</div>
+      </div>
+      <div class="aforo-chip" id="aforoChip">
+        <span>Aforo gimnasio</span>
+        <div class="bar"><div class="bar-fill" id="aforoBarFill" style="width:0%"></div></div>
+        <span class="num" id="aforoNum">0/50</span>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ===================== USUARIO ===================== -->
+      <section class="view active" id="view-usuario">
+
+        <div class="panel">
+          <div class="flex-between" style="margin-bottom:10px;">
+            <h2>Mi perfil <span class="tag">RF-01</span></h2>
+            <label class="f" style="flex-direction:row;align-items:center;gap:8px;">
+              Actuar como:
+              <select id="usuarioSelect"></select>
+            </label>
+          </div>
+          <div id="perfilUsuario" class="grid cols-4"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Clases y espacios disponibles <span class="tag">RF-02 / RF-03 — RS-01</span></h2>
+          <table>
+            <thead><tr><th>Clase</th><th>Entrenador</th><th>Horario</th><th>Precio</th><th>Cupos</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="tablaClases"></tbody>
+          </table>
+        </div>
+
+        <div class="panel">
+          <h2>Mis reservas <span class="tag">RD-02 historial</span></h2>
+          <table>
+            <thead><tr><th>Clase</th><th>Horario</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="tablaMisReservas"></tbody>
+          </table>
+        </div>
+
+        <div class="panel">
+          <h2>Notificaciones <span class="tag">RF-05</span></h2>
+          <div id="notisUsuario"></div>
+        </div>
+      </section>
+
+      <!-- ===================== CAJA ===================== -->
+      <section class="view" id="view-caja">
+        <div class="panel">
+          <h2>Pagos pendientes de regularizar <span class="tag">RF-04 / RB-02</span></h2>
+          <p class="muted-text" style="margin-bottom:14px;">Un usuario con pago pendiente no puede crear reservas (RB-02). Regulariza aquí su pago para habilitarlo.</p>
+          <table>
+            <thead><tr><th>Usuario</th><th>Plan</th><th>Estado pago</th><th></th></tr></thead>
+            <tbody id="tablaPagosPendientes"></tbody>
+          </table>
+        </div>
+        <div class="panel">
+          <h2>Validación presencial de pagos y acceso <span class="tag">RF-04 / RS-02 — RB-05</span></h2>
+          <p class="muted-text" style="margin-bottom:14px;">Toda reserva en línea debe confirmarse en caja con pago validado antes de permitir el acceso. El acceso solo se concede si hay cupo dentro del aforo general (50).</p>
+          <table>
+            <thead><tr><th>Usuario</th><th>Plan</th><th>Clase reservada</th><th>Estado pago</th><th>Reserva</th><th></th></tr></thead>
+            <tbody id="tablaCaja"></tbody>
+          </table>
+        </div>
+        <div class="panel">
+          <h2>Personas dentro del gimnasio</h2>
+          <table>
+            <thead><tr><th>Usuario</th><th>Hora de ingreso</th><th></th></tr></thead>
+            <tbody id="tablaDentro"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===================== ENTRENADOR ===================== -->
+      <section class="view" id="view-entrenador">
+        <div class="panel">
+          <div class="flex-between" style="margin-bottom:10px;">
+            <h2>Clientes asignados <span class="tag">RF-06</span></h2>
+            <label class="f" style="flex-direction:row;align-items:center;gap:8px;">
+              Entrenador:
+              <select id="entrenadorSelect"></select>
+            </label>
+          </div>
+          <table>
+            <thead><tr><th>Cliente</th><th>Plan</th><th>Última sesión</th><th>Asistencia</th><th></th></tr></thead>
+            <tbody id="tablaClientesEntrenador"></tbody>
+          </table>
+        </div>
+        <div class="panel">
+          <h2>Sesiones registradas hoy</h2>
+          <div id="sesionesHoy" class="empty">Sin sesiones registradas todavía</div>
+        </div>
+      </section>
+
+      <!-- ===================== ADMIN ===================== -->
+      <section class="view" id="view-admin">
+        <div class="panel">
+          <h2>Reportes operativos <span class="tag">RF-08 / RS-03</span></h2>
+          <div class="grid cols-4" id="reportesAdmin"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Gestión de usuarios <span class="tag">RF-01</span></h2>
+          <table>
+            <thead><tr><th>Usuario</th><th>Plan</th><th>Pago</th><th>Entrenador</th><th></th></tr></thead>
+            <tbody id="tablaUsuariosAdmin"></tbody>
+          </table>
+        </div>
+
+        <div class="panel">
+          <h2>Gestión de entrenadores <span class="tag">RF-06</span></h2>
+          <table>
+            <thead><tr><th>Entrenador</th><th>Especialidad</th><th>Clientes asignados</th></tr></thead>
+            <tbody id="tablaEntrenadoresAdmin"></tbody>
+          </table>
+        </div>
+
+        <div class="panel">
+          <h2>Gestión de horarios y clases <span class="tag">RF-05 / RS-04</span></h2>
+          <p class="muted-text" style="margin-bottom:14px;">El administrador define la capacidad, el horario y el precio de cada clase.</p>
+          <table>
+            <thead><tr><th>Clase</th><th>Entrenador</th><th>Horario</th><th>Capacidad</th><th>Precio</th><th>Inscritos</th><th>Espera</th><th></th></tr></thead>
+            <tbody id="tablaClasesAdmin"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   CAPA DE DOMINIO — modelos y reglas de negocio (RB-01..RB-05)
+   ========================================================= */
+const AFORO_MAXIMO = 50;
+
+let db = {
+  usuarios: [
+    {id:'u1', nombre:'Camila Restrepo', plan:'Mensual', pago:'al_dia', entrenadorId:'e1'},
+    {id:'u2', nombre:'Jorge Ariza', plan:'Por horas', pago:'pendiente', entrenadorId:null},
+    {id:'u3', nombre:'Luisa Fernanda Mejía', plan:'Personalizado', pago:'al_dia', entrenadorId:'e2'},
+    {id:'u4', nombre:'Andrés Pinto', plan:'Diario', pago:'al_dia', entrenadorId:null},
+    {id:'u5', nombre:'Daniela Suárez', plan:'Semanal', pago:'pendiente', entrenadorId:'e1'}
+  ],
+  entrenadores: [
+    {id:'e1', nombre:'Carlos Mendoza', especialidad:'Pesas y fuerza'},
+    {id:'e2', nombre:'Paula Jiménez', especialidad:'Funcional / cardio'}
+  ],
+  clases: [
+    {id:'c1', nombre:'Spinning matutino', entrenadorId:'e1', horario:'06:00', capacidad:3, precio:15000, inscritos:[], espera:[]},
+    {id:'c2', nombre:'Funcional HIIT', entrenadorId:'e2', horario:'08:00', capacidad:2, precio:18000, inscritos:[], espera:[]},
+    {id:'c3', nombre:'Pesas guiadas', entrenadorId:'e1', horario:'18:00', capacidad:4, precio:12000, inscritos:[], espera:[]}
+  ],
+  reservas: [], // {id, usuarioId, claseId, estado: pendiente_pago|confirmada|en_espera|cancelada|asistio, creada: Date}
+  dentroGimnasio: [], // {usuarioId, hora}
+  sesiones: [], // {entrenadorId, usuarioId, hora}
+  reservaSeq: 1
+};
+
+function uid(prefix){ return prefix + Date.now().toString(36) + Math.floor(Math.random()*1000); }
+
+/* =========================================================
+   CAPA DE APLICACIÓN — servicios (lógica de negocio)
+   ========================================================= */
+const ReservaService = {
+  crear(usuarioId, claseId){
+    const usuario = db.usuarios.find(u=>u.id===usuarioId);
+    const clase = db.clases.find(c=>c.id===claseId);
+    if(!usuario || !clase) return {ok:false, msg:'Datos inválidos.'};
+
+    // RB-02: pago al día requerido para reservar
+    if(usuario.pago !== 'al_dia'){
+      return {ok:false, msg:'RB-02: el usuario debe tener el pago al día para reservar.'};
+    }
+
+    const yaReservo = db.reservas.some(r => r.usuarioId===usuarioId && r.claseId===claseId && (r.estado==='pendiente_pago' || r.estado==='confirmada' || r.estado==='en_espera'));
+    if(yaReservo) return {ok:false, msg:'Ya tienes una reserva activa para esta clase.'};
+
+    // RF-02: validar aforo de la clase
+    if(clase.inscritos.length < clase.capacidad){
+      clase.inscritos.push(usuarioId);
+      const reserva = {id:'R-'+db.reservaSeq++, usuarioId, claseId, estado:'pendiente_pago', creada:new Date()};
+      db.reservas.push(reserva);
+      return {ok:true, msg:'Reserva creada. Debes confirmar el pago en caja antes de ingresar.'};
+    } else {
+      // RF-03: lista de espera automática
+      clase.espera.push(usuarioId);
+      const reserva = {id:'R-'+db.reservaSeq++, usuarioId, claseId, estado:'en_espera', creada:new Date()};
+      db.reservas.push(reserva);
+      return {ok:true, msg:'Cupo lleno. Has entrado en la lista de espera automática.'};
+    }
+  },
+
+  cancelar(reservaId){
+    const reserva = db.reservas.find(r=>r.id===reservaId);
+    if(!reserva) return {ok:false, msg:'Reserva no encontrada.'};
+    const clase = db.clases.find(c=>c.id===reserva.claseId);
+
+    // RB-03: cancelaciones con mínimo 2 horas de anticipación (simulado sobre la hora de creación + 2h de margen ficticio)
+    const minutosDesdeCreacion = (Date.now() - reserva.creada.getTime()) / 60000;
+    // Para el prototipo, simulamos la regla: si la reserva fue creada hace menos de 1 segundo de prueba real,
+    // igualmente validamos contra una "hora de clase" ficticia comparando con el horario asignado.
+    const ahora = new Date();
+    const [hh, mm] = clase.horario.split(':').map(Number);
+    const horaClase = new Date(); horaClase.setHours(hh, mm, 0, 0);
+    if(horaClase < ahora) horaClase.setDate(horaClase.getDate()+1);
+    const horasRestantes = (horaClase - ahora) / 3600000;
+    if(horasRestantes < 2){
+      return {ok:false, msg:'RB-03: no se puede cancelar con menos de 2 horas de anticipación a la clase.'};
+    }
+
+    reserva.estado = 'cancelada';
+    clase.inscritos = clase.inscritos.filter(id=>id!==reserva.usuarioId);
+    clase.espera = clase.espera.filter(id=>id!==reserva.usuarioId);
+
+    // promover siguiente en lista de espera
+    if(clase.espera.length > 0 && clase.inscritos.length < clase.capacidad){
+      const siguienteId = clase.espera.shift();
+      clase.inscritos.push(siguienteId);
+      const reservaSiguiente = db.reservas.find(r=>r.usuarioId===siguienteId && r.claseId===clase.id && r.estado==='en_espera');
+      if(reservaSiguiente) reservaSiguiente.estado = 'pendiente_pago';
+    }
+    return {ok:true, msg:'Reserva cancelada.'};
+  }
+};
+
+const PagoService = {
+  // RF-04 / RS-02: validar/regularizar el pago de un usuario en caja, independientemente de una reserva.
+  // Es el paso previo que habilita a un usuario con pago pendiente para poder reservar (RB-02).
+  regularizar(usuarioId){
+    const usuario = db.usuarios.find(u=>u.id===usuarioId);
+    if(!usuario) return {ok:false, msg:'Usuario no encontrado.'};
+    if(usuario.pago === 'al_dia') return {ok:false, msg:'Este usuario ya tiene el pago al día.'};
+    usuario.pago = 'al_dia';
+    return {ok:true, msg:`Pago de ${usuario.nombre} regularizado. Ya puede reservar.`};
+  },
+  // RF-04 / RS-02 / RB-05: validar pago presencial y confirmar reserva
+  validarPago(reservaId){
+    const reserva = db.reservas.find(r=>r.id===reservaId);
+    if(!reserva) return {ok:false, msg:'Reserva no encontrada.'};
+    if(reserva.estado !== 'pendiente_pago') return {ok:false, msg:'La reserva no está pendiente de pago.'};
+    const usuario = db.usuarios.find(u=>u.id===reserva.usuarioId);
+    usuario.pago = 'al_dia';
+    reserva.estado = 'confirmada';
+    return {ok:true, msg:'Pago validado. Reserva confirmada.'};
+  }
+};
+
+const AforoService = {
+  ocupacionActual(){ return db.dentroGimnasio.length; },
+  // IE-05 / RB-01: control de acceso por torniquete según aforo máximo
+  confirmarAcceso(usuarioId, reservaId){
+    if(this.ocupacionActual() >= AFORO_MAXIMO){
+      return {ok:false, msg:'RB-01: aforo máximo alcanzado (50/50). Acceso denegado.'};
+    }
+    const reserva = db.reservas.find(r=>r.id===reservaId);
+    if(reserva && reserva.estado !== 'confirmada'){
+      return {ok:false, msg:'La reserva debe estar confirmada (pago validado) antes del acceso.'};
+    }
+    db.dentroGimnasio.push({usuarioId, hora: new Date()});
+    return {ok:true, msg:'Acceso confirmado.'};
+  },
+  registrarSalida(usuarioId){
+    db.dentroGimnasio = db.dentroGimnasio.filter(d=>d.usuarioId!==usuarioId);
+    return {ok:true};
+  }
+};
+
+const AdminService = {
+  // RF-05 / RS-04: el administrador define capacidad, horario y precio de cada clase
+  actualizarClase(claseId, {capacidad, horario, precio}){
+    const clase = db.clases.find(c=>c.id===claseId);
+    if(!clase) return {ok:false, msg:'Clase no encontrada.'};
+
+    const nuevaCapacidad = parseInt(capacidad, 10);
+    if(isNaN(nuevaCapacidad) || nuevaCapacidad < 1) return {ok:false, msg:'La capacidad debe ser un número mayor a 0.'};
+    if(nuevaCapacidad < clase.inscritos.length){
+      return {ok:false, msg:`No puedes fijar una capacidad (${nuevaCapacidad}) menor a los inscritos actuales (${clase.inscritos.length}).`};
+    }
+
+    const nuevoPrecio = parseInt(precio, 10);
+    if(isNaN(nuevoPrecio) || nuevoPrecio < 0) return {ok:false, msg:'El precio debe ser un número válido.'};
+
+    if(!/^([01]\d|2[0-3]):([0-5]\d)$/.test(horario)) return {ok:false, msg:'El horario debe tener formato HH:MM, ej. 07:30.'};
+
+    clase.capacidad = nuevaCapacidad;
+    clase.horario = horario;
+    clase.precio = nuevoPrecio;
+
+    // si al aumentar la capacidad se liberan cupos, promover lista de espera (RF-03)
+    while(clase.espera.length > 0 && clase.inscritos.length < clase.capacidad){
+      const siguienteId = clase.espera.shift();
+      clase.inscritos.push(siguienteId);
+      const reservaSiguiente = db.reservas.find(r=>r.usuarioId===siguienteId && r.claseId===clase.id && r.estado==='en_espera');
+      if(reservaSiguiente) reservaSiguiente.estado = 'pendiente_pago';
+    }
+
+    return {ok:true, msg:`Clase "${clase.nombre}" actualizada.`};
+  }
+};
+
+const EntrenadorService = {
+  registrarSesion(entrenadorId, usuarioId){
+    db.sesiones.push({entrenadorId, usuarioId, hora:new Date()});
+    return {ok:true, msg:'Sesión registrada.'};
+  }
+};
+
+const ReporteService = {
+  // RF-08 / RS-03
+  generar(){
+    const ocupacionPct = Math.round((AforoService.ocupacionActual()/AFORO_MAXIMO)*100);
+    const reservasConfirmadas = db.reservas.filter(r=>r.estado==='confirmada' || r.estado==='asistio').length;
+    const enListaEspera = db.reservas.filter(r=>r.estado==='en_espera').length;
+    const pagosPendientes = db.usuarios.filter(u=>u.pago==='pendiente').length;
+    const sesionesHoy = db.sesiones.length;
+    return {ocupacionPct, reservasConfirmadas, enListaEspera, pagosPendientes, sesionesHoy};
+  }
+};
+
+/* =========================================================
+   CAPA DE PRESENTACIÓN — render y eventos de UI
+   ========================================================= */
+let toastTimer;
+function toast(msg, isError){
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.toggle('error', !!isError);
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>el.classList.remove('show'), 3200);
+}
+
+function planLabel(p){ return p; }
+function formatoPrecio(v){ return '$' + Number(v).toLocaleString('es-CO'); }
+function pagoPill(estado){
+  return estado==='al_dia'
+    ? '<span class="pill ok">Pago al día</span>'
+    : '<span class="pill bad">Pago pendiente</span>';
+}
+function estadoReservaPill(estado){
+  const map = {
+    pendiente_pago: ['warn','Pendiente de pago'],
+    confirmada: ['ok','Confirmada'],
+    en_espera: ['info','Lista de espera'],
+    cancelada: ['muted','Cancelada'],
+    asistio: ['ok','Asistió']
+  };
+  const [cls, label] = map[estado] || ['muted', estado];
+  return `<span class="pill ${cls}">${label}</span>`;
+}
+
+function renderAforoChip(){
+  const ocup = AforoService.ocupacionActual();
+  const pct = Math.round((ocup/AFORO_MAXIMO)*100);
+  document.getElementById('aforoNum').textContent = ocup + '/' + AFORO_MAXIMO;
+  document.getElementById('aforoBarFill').style.width = pct + '%';
+  const chip = document.getElementById('aforoChip');
+  chip.classList.remove('warn','full');
+  if(pct>=100) chip.classList.add('full');
+  else if(pct>=85) chip.classList.add('warn');
+}
+
+/* ---- USUARIO ---- */
+let usuarioActivoId = db.usuarios[0].id;
+
+function renderUsuarioSelect(){
+  const sel = document.getElementById('usuarioSelect');
+  sel.innerHTML = db.usuarios.map(u=>`<option value="${u.id}" ${u.id===usuarioActivoId?'selected':''}>${u.nombre}</option>`).join('');
+  sel.onchange = e => { usuarioActivoId = e.target.value; renderUsuarioView(); };
+}
+
+function renderPerfilUsuario(){
+  const u = db.usuarios.find(x=>x.id===usuarioActivoId);
+  const ent = db.entrenadores.find(e=>e.id===u.entrenadorId);
+  const cont = document.getElementById('perfilUsuario');
+  cont.innerHTML = `
+    <div class="stat"><div class="stat-label">Plan</div><div class="stat-value" style="font-size:16px;">${u.plan}</div></div>
+    <div class="stat"><div class="stat-label">Estado de pago</div><div class="stat-value" style="font-size:16px;">${pagoPill(u.pago)}</div></div>
+    <div class="stat"><div class="stat-label">Entrenador asignado</div><div class="stat-value" style="font-size:16px;">${ent ? ent.nombre : 'Sin asignar'}</div></div>
+    <div class="stat"><div class="stat-label">Reservas activas</div><div class="stat-value" style="font-size:16px;">${db.reservas.filter(r=>r.usuarioId===u.id && (r.estado==='pendiente_pago'||r.estado==='confirmada'||r.estado==='en_espera')).length}</div></div>
+  `;
+}
+
+function renderTablaClases(){
+  const tbody = document.getElementById('tablaClases');
+  tbody.innerHTML = db.clases.map(c=>{
+    const ent = db.entrenadores.find(e=>e.id===c.entrenadorId);
+    const cuposLibres = c.capacidad - c.inscritos.length;
+    let estado;
+    if(cuposLibres > 0) estado = `<span class="pill ok">${cuposLibres} cupos libres</span>`;
+    else estado = `<span class="pill warn">Lleno · ${c.espera.length} en espera</span>`;
+    const yaInscrito = c.inscritos.includes(usuarioActivoId) || c.espera.includes(usuarioActivoId);
+    return `<tr>
+      <td>${c.nombre}</td>
+      <td>${ent ? ent.nombre : '—'}</td>
+      <td>${c.horario}</td>
+      <td>${formatoPrecio(c.precio)}</td>
+      <td>${c.inscritos.length}/${c.capacidad}</td>
+      <td>${estado}</td>
+      <td><button class="action primary" data-reservar="${c.id}" ${yaInscrito?'disabled':''}>${yaInscrito ? 'Ya reservado' : 'Reservar'}</button></td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-reservar]').forEach(btn=>{
+    btn.onclick = () => {
+      const r = ReservaService.crear(usuarioActivoId, btn.dataset.reservar);
+      toast(r.msg, !r.ok);
+      if(r.ok) renderAll();
+    };
+  });
+}
+
+function renderMisReservas(){
+  const tbody = document.getElementById('tablaMisReservas');
+  const mias = db.reservas.filter(r=>r.usuarioId===usuarioActivoId);
+  if(mias.length===0){ tbody.innerHTML = '<tr><td colspan="4" class="empty">Aún no tienes reservas</td></tr>'; return; }
+  tbody.innerHTML = mias.map(r=>{
+    const clase = db.clases.find(c=>c.id===r.claseId);
+    const cancelable = r.estado==='pendiente_pago' || r.estado==='confirmada' || r.estado==='en_espera';
+    return `<tr>
+      <td>${clase.nombre}</td>
+      <td>${clase.horario}</td>
+      <td>${estadoReservaPill(r.estado)}</td>
+      <td>${cancelable ? `<button class="action danger" data-cancelar="${r.id}">Cancelar</button>` : ''}</td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-cancelar]').forEach(btn=>{
+    btn.onclick = () => {
+      const r = ReservaService.cancelar(btn.dataset.cancelar);
+      toast(r.msg, !r.ok);
+      renderAll();
+    };
+  });
+}
+
+function renderNotisUsuario(){
+  const u = db.usuarios.find(x=>x.id===usuarioActivoId);
+  const cont = document.getElementById('notisUsuario');
+  const notis = [];
+  if(u.pago !== 'al_dia') notis.push({tipo:'bad', txt:'Tu pago está pendiente. Debes regularizarlo en caja para poder reservar.'});
+  db.reservas.filter(r=>r.usuarioId===u.id && r.estado==='pendiente_pago').forEach(r=>{
+    const c = db.clases.find(x=>x.id===r.claseId);
+    notis.push({tipo:'warn', txt:`Confirma tu pago en caja para la clase "${c.nombre}" antes del ingreso.`});
+  });
+  db.reservas.filter(r=>r.usuarioId===u.id && r.estado==='en_espera').forEach(r=>{
+    const c = db.clases.find(x=>x.id===r.claseId);
+    notis.push({tipo:'info', txt:`Estás en lista de espera para "${c.nombre}". Te notificaremos si se libera un cupo.`});
+  });
+  if(notis.length===0){ cont.innerHTML = '<div class="empty">No tienes notificaciones nuevas</div>'; return; }
+  cont.innerHTML = notis.map(n=>`<div class="pill ${n.tipo}" style="display:flex;margin-bottom:8px;padding:9px 14px;text-transform:none;font-weight:500;letter-spacing:0;">${n.txt}</div>`).join('');
+}
+
+function renderUsuarioView(){
+  renderPerfilUsuario();
+  renderTablaClases();
+  renderMisReservas();
+  renderNotisUsuario();
+}
+
+/* ---- CAJA ---- */
+function renderCaja(){
+  const tPend = document.getElementById('tablaPagosPendientes');
+  const pendientesPago = db.usuarios.filter(u=>u.pago==='pendiente');
+  if(pendientesPago.length===0){ tPend.innerHTML = '<tr><td colspan="4" class="empty">No hay pagos pendientes por regularizar</td></tr>'; }
+  else {
+    tPend.innerHTML = pendientesPago.map(u=>`<tr>
+      <td>${u.nombre}</td>
+      <td>${u.plan}</td>
+      <td>${pagoPill(u.pago)}</td>
+      <td><button class="action primary" data-regularizar="${u.id}">Regularizar pago</button></td>
+    </tr>`).join('');
+    tPend.querySelectorAll('[data-regularizar]').forEach(btn=>{
+      btn.onclick = () => { const r = PagoService.regularizar(btn.dataset.regularizar); toast(r.msg, !r.ok); renderAll(); };
+    });
+  }
+
+  const tbody = document.getElementById('tablaCaja');
+  const pendientes = db.reservas.filter(r=>r.estado==='pendiente_pago' || r.estado==='confirmada');
+  if(pendientes.length===0){ tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay reservas por gestionar</td></tr>'; }
+  else {
+    tbody.innerHTML = pendientes.map(r=>{
+      const u = db.usuarios.find(x=>x.id===r.usuarioId);
+      const c = db.clases.find(x=>x.id===r.claseId);
+      const dentro = db.dentroGimnasio.some(d=>d.usuarioId===u.id);
+      let accion;
+      if(r.estado==='pendiente_pago') accion = `<button class="action primary" data-validar="${r.id}">Validar pago</button>`;
+      else if(r.estado==='confirmada' && !dentro) accion = `<button class="action" data-acceso="${r.id}" data-uid="${u.id}">Confirmar acceso</button>`;
+      else accion = `<span class="pill ok">Dentro del gimnasio</span>`;
+      return `<tr>
+        <td>${u.nombre}</td>
+        <td>${u.plan}</td>
+        <td>${c.nombre} · ${c.horario}</td>
+        <td>${pagoPill(u.pago)}</td>
+        <td>${estadoReservaPill(r.estado)}</td>
+        <td>${accion}</td>
+      </tr>`;
+    }).join('');
+  }
+  tbody.querySelectorAll('[data-validar]').forEach(btn=>{
+    btn.onclick = () => { const r = PagoService.validarPago(btn.dataset.validar); toast(r.msg, !r.ok); renderAll(); };
+  });
+  tbody.querySelectorAll('[data-acceso]').forEach(btn=>{
+    btn.onclick = () => {
+      const r = AforoService.confirmarAcceso(btn.dataset.uid, btn.dataset.acceso);
+      toast(r.msg, !r.ok); renderAll();
+    };
+  });
+
+  const tDentro = document.getElementById('tablaDentro');
+  if(db.dentroGimnasio.length===0){ tDentro.innerHTML = '<tr><td colspan="3" class="empty">No hay personas dentro en este momento</td></tr>'; }
+  else {
+    tDentro.innerHTML = db.dentroGimnasio.map(d=>{
+      const u = db.usuarios.find(x=>x.id===d.usuarioId);
+      return `<tr><td>${u.nombre}</td><td>${d.hora.toLocaleTimeString('es-ES')}</td><td><button class="action" data-salida="${d.usuarioId}">Registrar salida</button></td></tr>`;
+    }).join('');
+    tDentro.querySelectorAll('[data-salida]').forEach(btn=>{
+      btn.onclick = () => { AforoService.registrarSalida(btn.dataset.salida); toast('Salida registrada.'); renderAll(); };
+    });
+  }
+}
+
+/* ---- ENTRENADOR ---- */
+let entrenadorActivoId = db.entrenadores[0].id;
+
+function renderEntrenadorSelect(){
+  const sel = document.getElementById('entrenadorSelect');
+  sel.innerHTML = db.entrenadores.map(e=>`<option value="${e.id}" ${e.id===entrenadorActivoId?'selected':''}>${e.nombre}</option>`).join('');
+  sel.onchange = e => { entrenadorActivoId = e.target.value; renderEntrenadorView(); };
+}
+
+function renderEntrenadorView(){
+  const tbody = document.getElementById('tablaClientesEntrenador');
+  const clientes = db.usuarios.filter(u=>u.entrenadorId===entrenadorActivoId);
+  if(clientes.length===0){ tbody.innerHTML = '<tr><td colspan="5" class="empty">Sin clientes asignados</td></tr>'; }
+  else {
+    tbody.innerHTML = clientes.map(u=>{
+      const ultimaSesion = [...db.sesiones].reverse().find(s=>s.usuarioId===u.id);
+      const yaHoy = db.sesiones.some(s=>s.usuarioId===u.id && s.entrenadorId===entrenadorActivoId && isToday(s.hora));
+      return `<tr>
+        <td>${u.nombre}</td>
+        <td>${u.plan}</td>
+        <td>${ultimaSesion ? ultimaSesion.hora.toLocaleString('es-ES') : 'Sin sesiones previas'}</td>
+        <td>${yaHoy ? '<span class="pill ok">Asistió hoy</span>' : '<span class="pill muted">Pendiente</span>'}</td>
+        <td><button class="action primary" data-sesion="${u.id}" ${yaHoy?'disabled':''}>${yaHoy?'Registrada':'Registrar sesión'}</button></td>
+      </tr>`;
+    }).join('');
+    tbody.querySelectorAll('[data-sesion]').forEach(btn=>{
+      btn.onclick = () => {
+        const r = EntrenadorService.registrarSesion(entrenadorActivoId, btn.dataset.sesion);
+        toast(r.msg); renderAll();
+      };
+    });
+  }
+
+  const sesHoy = document.getElementById('sesionesHoy');
+  const lista = db.sesiones.filter(s=>s.entrenadorId===entrenadorActivoId && isToday(s.hora));
+  sesHoy.innerHTML = lista.length===0 ? '<div class="empty">Sin sesiones registradas todavía</div>' :
+    lista.map(s=>{
+      const u = db.usuarios.find(x=>x.id===s.usuarioId);
+      return `<div class="pill ok" style="display:flex;margin-bottom:8px;padding:9px 14px;text-transform:none;font-weight:500;">${u.nombre} — sesión registrada a las ${s.hora.toLocaleTimeString('es-ES')}</div>`;
+    }).join('');
+}
+
+function isToday(d){ const n = new Date(); return d.getDate()===n.getDate() && d.getMonth()===n.getMonth() && d.getFullYear()===n.getFullYear(); }
+
+/* ---- ADMIN ---- */
+function renderAdmin(){
+  const rep = ReporteService.generar();
+  document.getElementById('reportesAdmin').innerHTML = `
+    <div class="stat"><div class="stat-label">Ocupación actual</div><div class="stat-value">${rep.ocupacionPct}%</div></div>
+    <div class="stat"><div class="stat-label">Reservas confirmadas</div><div class="stat-value">${rep.reservasConfirmadas}</div></div>
+    <div class="stat"><div class="stat-label">En lista de espera</div><div class="stat-value">${rep.enListaEspera}</div></div>
+    <div class="stat"><div class="stat-label">Pagos pendientes</div><div class="stat-value">${rep.pagosPendientes}</div></div>
+  `;
+
+  document.getElementById('tablaUsuariosAdmin').innerHTML = db.usuarios.map(u=>{
+    const ent = db.entrenadores.find(e=>e.id===u.entrenadorId);
+    return `<tr><td>${u.nombre}</td><td>${u.plan}</td><td>${pagoPill(u.pago)}</td><td>${ent?ent.nombre:'Sin asignar'}</td></tr>`;
+  }).join('');
+
+  document.getElementById('tablaEntrenadoresAdmin').innerHTML = db.entrenadores.map(e=>{
+    const n = db.usuarios.filter(u=>u.entrenadorId===e.id).length;
+    return `<tr><td>${e.nombre}</td><td>${e.especialidad}</td><td>${n}</td></tr>`;
+  }).join('');
+
+  document.getElementById('tablaClasesAdmin').innerHTML = db.clases.map(c=>{
+    const ent = db.entrenadores.find(e=>e.id===c.entrenadorId);
+    return `<tr>
+      <td>${c.nombre}</td>
+      <td>${ent?ent.nombre:'—'}</td>
+      <td><input class="table-edit" type="text" value="${c.horario}" data-field="horario" data-clase="${c.id}" style="width:60px;"></td>
+      <td><input class="table-edit" type="text" value="${c.capacidad}" data-field="capacidad" data-clase="${c.id}" style="width:48px;"></td>
+      <td><input class="table-edit" type="text" value="${c.precio}" data-field="precio" data-clase="${c.id}" style="width:80px;"></td>
+      <td>${c.inscritos.length}</td>
+      <td>${c.espera.length}</td>
+      <td><button class="action primary" data-guardar-clase="${c.id}">Guardar</button></td>
+    </tr>`;
+  }).join('');
+  document.querySelectorAll('[data-guardar-clase]').forEach(btn=>{
+    btn.onclick = () => {
+      const claseId = btn.dataset.guardarClase;
+      const fila = btn.closest('tr');
+      const horario = fila.querySelector('[data-field="horario"]').value.trim();
+      const capacidad = fila.querySelector('[data-field="capacidad"]').value.trim();
+      const precio = fila.querySelector('[data-field="precio"]').value.trim();
+      const r = AdminService.actualizarClase(claseId, {capacidad, horario, precio});
+      toast(r.msg, !r.ok);
+      if(r.ok) renderAll();
+    };
+  });
+}
+
+/* ---- NAVEGACIÓN ---- */
+const titles = {
+  usuario: ['Panel de usuario', 'RF-02 Reservas con validación de aforo'],
+  caja: ['Caja presencial', 'RF-04 / RS-02 Validación de pagos y acceso'],
+  entrenador: ['Panel de entrenador', 'RF-06 / RF-07 Asignación y asistencia'],
+  admin: ['Panel de administrador', 'RF-08 / RS-03 Reportes y gestión']
+};
+
+function setRole(role){
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.role===role));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id==='view-'+role));
+  document.getElementById('viewTitle').textContent = titles[role][0];
+  document.getElementById('viewSub').textContent = titles[role][1];
+}
+
+document.querySelectorAll('.navbtn').forEach(btn=>{
+  btn.onclick = () => setRole(btn.dataset.role);
+});
+
+function renderAll(){
+  renderAforoChip();
+  renderUsuarioSelect();
+  renderUsuarioView();
+  renderCaja();
+  renderEntrenadorSelect();
+  renderEntrenadorView();
+  renderAdmin();
+}
+
+setRole('usuario');
+renderAll();
+</script>
+</body>
+</html>
